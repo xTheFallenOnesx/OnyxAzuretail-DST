@@ -35,13 +35,12 @@ local assets = {
         Asset( "ANIM", "anim/ghost_onyxazuretail_build.zip" ),
 }
 local prefabs = {
-	"torchfire",
+	
 }
 
 -- Custom starting items
 local start_inv = {
-	"goldenaxe",
-	"azuretiara",
+	
 }
 
 
@@ -68,7 +67,7 @@ local common_postinit = function(inst)
 	-- Minimap icon
 	inst.MiniMapEntity:SetIcon( "onyxazuretail.tex" )
 	
-	inst:AddTag("azurebuilder")
+	--inst:AddTag("azurebuilder")
 end
 
 -- This initializes for the server only. Components are added here.
@@ -100,3 +99,49 @@ local master_postinit = function(inst)
 end
 
 return MakePlayerCharacter("onyxazuretail", prefabs, assets, common_postinit, master_postinit, start_inv)
+
+--Fireball?
+local MakePlayerCharacter = require("prefabs/player_common")
+
+local assets = {
+	Asset("ANIM", "anim/wilson.zip"),
+	Asset("ANIM", "anim/ghost_wilson_build.zip"),
+}
+
+local prefabs = {}
+
+local function common_postinit(inst)
+	inst:AddTag("ghostwithhat")
+	inst:AddTag("spitdragon")
+
+	inst.spitcharges = net_tinybyte(inst.GUID, "p.f.spit", "spitchargedelta")
+end
+
+local function onFuelEaten(inst, val)
+	local newval = math.max(0, math.min(7, inst.spitcharges:value() + val))
+	if newval < 2 then
+		inst:RemoveTag("canspitfire")
+	else
+		inst:AddTag("canspitfire")
+	end
+	inst.spitcharges:set_local(newval)
+	inst.spitcharges:set(newval)
+end
+
+local function OnLoad(inst, data)
+	onFuelEaten(inst, data and data.spitcharges or 0)
+end
+
+local function OnSave(inst, data)
+	data.spitcharges = inst.spitcharges:value()
+end
+
+local function master_postinit(inst)
+	onFuelEaten(inst, 0)
+	inst:ListenForEvent("fueleaten", onFuelEaten)
+
+	inst.OnLoad = OnLoad
+	inst.OnSave = OnSave
+end
+
+return MakePlayerCharacter("wilson", prefabs, assets, common_postinit, master_postinit)
