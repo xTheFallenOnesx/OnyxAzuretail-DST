@@ -1,39 +1,10 @@
-
 local MakePlayerCharacter = require "prefabs/player_common"
 
-
 local assets = {
-
-        Asset( "ANIM", "anim/player_basic.zip" ),
-        Asset( "ANIM", "anim/player_idles_shiver.zip" ),
-        Asset( "ANIM", "anim/player_actions.zip" ),
-        Asset( "ANIM", "anim/player_actions_axe.zip" ),
-        Asset( "ANIM", "anim/player_actions_pickaxe.zip" ),
-        Asset( "ANIM", "anim/player_actions_shovel.zip" ),
-        Asset( "ANIM", "anim/player_actions_blowdart.zip" ),
-        Asset( "ANIM", "anim/player_actions_eat.zip" ),
-        Asset( "ANIM", "anim/player_actions_item.zip" ),
-        Asset( "ANIM", "anim/player_actions_uniqueitem.zip" ),
-        Asset( "ANIM", "anim/player_actions_bugnet.zip" ),
-        Asset( "ANIM", "anim/player_actions_fishing.zip" ),
-        Asset( "ANIM", "anim/player_actions_boomerang.zip" ),
-        Asset( "ANIM", "anim/player_bush_hat.zip" ),
-        Asset( "ANIM", "anim/player_attacks.zip" ),
-        Asset( "ANIM", "anim/player_idles.zip" ),
-        Asset( "ANIM", "anim/player_rebirth.zip" ),
-        Asset( "ANIM", "anim/player_jump.zip" ),
-        Asset( "ANIM", "anim/player_amulet_resurrect.zip" ),
-        Asset( "ANIM", "anim/player_teleport.zip" ),
-        Asset( "ANIM", "anim/wilson_fx.zip" ),
-        Asset( "ANIM", "anim/player_one_man_band.zip" ),
-        Asset( "ANIM", "anim/shadow_hands.zip" ),
-        Asset( "SOUND", "sound/sfx.fsb" ),
-        Asset( "SOUND", "sound/wilson.fsb" ),
-        Asset( "ANIM", "anim/beard.zip" ),
-
-        Asset( "ANIM", "anim/onyxazuretail.zip" ),
-        Asset( "ANIM", "anim/ghost_onyxazuretail_build.zip" ),
+	Asset( "ANIM", "anim/onyxazuretail.zip" ),
+	Asset( "ANIM", "anim/ghost_onyxazuretail_build.zip" ),
 }
+
 local prefabs = {
 	
 }
@@ -42,6 +13,18 @@ local prefabs = {
 local start_inv = {
 	
 }
+
+-- Changing fuel values
+local function onFuelEaten(inst, val)
+	local newval = math.max(0, math.min(7, inst.spitcharges:value() + val))
+	if newval < 2 then
+		inst:RemoveTag("canspitfire")
+	else
+		inst:AddTag("canspitfire")
+	end
+	inst.spitcharges:set_local(newval)
+	inst.spitcharges:set(newval)
+end
 
 
 -- When the character is revived from human
@@ -53,12 +36,20 @@ end
 
 
 -- When loading or spawning the character
-local function onload(inst)
+local function onload(inst, data)
     inst:ListenForEvent("ms_respawnedfromghost", onbecamehuman)
 
     if not inst:HasTag("playerghost") then
         onbecamehuman(inst)
     end
+
+	-- Loading fuel charges
+	onFuelEaten(inst, data and data.spitcharges or 0)
+end
+
+local function onsave(inst, data)
+	-- Save the fuel charges
+	data.spitcharges = inst.spitcharges:value()
 end
 
 
@@ -68,6 +59,10 @@ local common_postinit = function(inst)
 	inst.MiniMapEntity:SetIcon( "onyxazuretail.tex" )
 	
 	--inst:AddTag("azurebuilder")
+
+	-- Fire breath variables
+	inst:AddTag("spitdragon")
+	inst.spitcharges = net_tinybyte(inst.GUID, "p.f.spit", "spitchargedelta")
 end
 
 -- This initializes for the server only. Components are added here.
@@ -96,52 +91,11 @@ local master_postinit = function(inst)
 	
 	inst.OnLoad = onload
     inst.OnNewSpawn = onload
+	inst.OnSave = onsave
+
+	-- Accept event from eating fuel
+	onFuelEaten(inst, 0)
+	inst:ListenForEvent("fueleaten", onFuelEaten)
 end
 
 return MakePlayerCharacter("onyxazuretail", prefabs, assets, common_postinit, master_postinit, start_inv)
-
---Fireball?
-local MakePlayerCharacter = require("prefabs/player_common")
-
-local assets = {
-	Asset("ANIM", "anim/wilson.zip"),
-	Asset("ANIM", "anim/ghost_wilson_build.zip"),
-}
-
-local prefabs = {}
-
-local function common_postinit(inst)
-	inst:AddTag("ghostwithhat")
-	inst:AddTag("spitdragon")
-
-	inst.spitcharges = net_tinybyte(inst.GUID, "p.f.spit", "spitchargedelta")
-end
-
-local function onFuelEaten(inst, val)
-	local newval = math.max(0, math.min(7, inst.spitcharges:value() + val))
-	if newval < 2 then
-		inst:RemoveTag("canspitfire")
-	else
-		inst:AddTag("canspitfire")
-	end
-	inst.spitcharges:set_local(newval)
-	inst.spitcharges:set(newval)
-end
-
-local function OnLoad(inst, data)
-	onFuelEaten(inst, data and data.spitcharges or 0)
-end
-
-local function OnSave(inst, data)
-	data.spitcharges = inst.spitcharges:value()
-end
-
-local function master_postinit(inst)
-	onFuelEaten(inst, 0)
-	inst:ListenForEvent("fueleaten", onFuelEaten)
-
-	inst.OnLoad = OnLoad
-	inst.OnSave = OnSave
-end
-
-return MakePlayerCharacter("wilson", prefabs, assets, common_postinit, master_postinit)
