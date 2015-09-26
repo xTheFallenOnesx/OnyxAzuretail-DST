@@ -14,6 +14,24 @@ local start_inv = {
 	
 }
 
+
+local function HeatFn(inst)
+	if TheWorld.state.season == "winter" then
+		return 20+10
+	else
+		return 10
+	end
+end
+
+local function LightFn(inst)
+	if TheWorld.state.season == "winter" then
+		inst.Light:Enable(true)
+	else
+		inst.Light:Enable(false)
+	end
+end
+
+
 -- Changing fuel values
 local function onFuelEaten(inst, val)
 	local newval = math.max(0, math.min(7, inst.spitcharges:value() + val))
@@ -67,6 +85,19 @@ end
 
 -- This initializes for the server only. Components are added here.
 local master_postinit = function(inst)
+	
+	inst:AddTag("HASHEATER")
+	
+	inst.entity:SetPristine()
+	
+	if not TheWorld.ismastersim then
+		return inst
+	end
+	
+	-- Heater component
+	inst:AddComponent("heater")
+	inst.components.heater.heatfn = HeatFn
+	
 	-- choose which sounds this character will play
 	inst.soundsname = "wendy"
 	
@@ -88,6 +119,19 @@ local master_postinit = function(inst)
 	
 	-- Hunger rate (optional)
 	inst.components.hunger.hungerrate = 1 * TUNING.WILSON_HUNGER_RATE
+	
+	-- Emit Light
+	local light = inst.entity:AddLight()
+	inst.Light:Enable(false)
+    inst.Light:SetIntensity(.75)
+    inst.Light:SetColour(197 / 255, 197 / 255, 50 / 255)
+    inst.Light:SetFalloff(0.5)
+    inst.Light:SetRadius(2)
+	
+	inst:WatchWorldState("daytime", function(inst) LightFn(inst) end , TheWorld)
+	inst:WatchWorldState("dusktime", function(inst) LightFn(inst) end , TheWorld)
+	inst:WatchWorldState("nighttime", function(inst) LightFn(inst) end , TheWorld)
+	LightFn(inst)
 	
 	inst.OnLoad = onload
     inst.OnNewSpawn = onload
